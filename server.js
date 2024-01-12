@@ -43,7 +43,7 @@ app.use('*', async (req, res) => {
         let render
         if (!isProduction) {
             // Always read fresh template in development
-            template = await fs.readFile('./index.html', 'utf-8')
+            template = await fs.readFile('./src/client/index.html', 'utf-8')
             template = await vite.transformIndexHtml(url, template)
             render = (await vite.ssrLoadModule('/src/server/entry-server.js')).render
         } else {
