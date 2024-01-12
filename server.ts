@@ -1,5 +1,6 @@
-import fs from 'node:fs/promises'
-import express from 'express'
+import fs from 'node:fs/promises';
+import express from 'express';
+import { ViteDevServer } from 'vite';
 
 // Constants
 const isProduction = process.env.NODE_ENV === 'production'
@@ -18,7 +19,7 @@ const ssrManifest = isProduction
 const app = express()
 
 // Add Vite or respective production middlewares
-let vite
+let vite: ViteDevServer | null;
 if (!isProduction) {
     const { createServer } = await import('vite')
     vite = await createServer({
@@ -36,6 +37,7 @@ if (!isProduction) {
 
 // Serve HTML
 app.use('*', async (req, res) => {
+    if (!vite) return;
     try {
         const url = req.originalUrl.replace(base, '')
 
@@ -45,20 +47,23 @@ app.use('*', async (req, res) => {
             // Always read fresh template in development
             template = await fs.readFile('./src/client/index.html', 'utf-8')
             template = await vite.transformIndexHtml(url, template)
-            render = (await vite.ssrLoadModule('/src/server/entry-server.js')).render
+            render = (await vite.ssrLoadModule('/src/server/entry-server.ts')).render
         } else {
             template = templateHtml
-            render = (await import('./dist/server/entry-server.js')).render
+            render = (await import('./dist/server/entry-server.ts' ?? "")).render
         }
 
         const rendered = await render(url, ssrManifest)
 
         const html = template
             .replace(`<!--app-head-->`, rendered.head ?? '')
-            .replace(`<!--app-html-->`, rendered.html ?? '')
+            .replace(`<!--app-header-->`, rendered.header ?? '')
+            .replace(`<!--app-sidebar-->`, rendered.sidebar ?? '')
+            .replace(`<!--app-main-->`, rendered.main ?? '')
 
         res.status(200).set({ 'Content-Type': 'text/html' }).end(html)
-    } catch (e) {
+    } catch (error) {
+        const e = error as Error;
         vite?.ssrFixStacktrace(e)
         console.log(e.stack)
         res.status(500).end(e.stack)

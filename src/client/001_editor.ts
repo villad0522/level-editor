@@ -21,6 +21,8 @@ type Savefunc = (functionInfos: Array<FunctionInfo>) => void;
 //#########################################################################################
 
 export function setupEditor1(functionInfos: Array<FunctionInfo>, onSave: Savefunc) {
+    const appElement = document.getElementById("app");
+    appElement?.style.setProperty("display", "none");
 
     // エディターの初期値（文字列の配列）
     const sections: Array<Section> = [];

@@ -6,7 +6,7 @@ export default defineConfig({
     build: {
         rollupOptions: {
             input: {
-                main: resolve(__dirname, './src/client/index.html'),
+                main: resolve(__dirname, './server.ts'),
                 //nested: resolve(__dirname, 'nested/index.html'),
             },
         },
