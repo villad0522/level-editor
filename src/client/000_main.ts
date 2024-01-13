@@ -1,27 +1,37 @@
+
+import './style.scss';
 import { setupEditor1, FunctionInfo } from "./001_editor.ts";
 import { setupEditor1B } from "./001B_editor.ts";
 
-const searchParams = new URLSearchParams(location.search);
-const isSetting = searchParams.has("func")
-history.pushState(null, "", location.pathname);
-if (isSetting) {
+if (!window.layerInfo?.layerId) {
+    throw "window.layerInfo?.layerIdが空欄です。";
+}
+
+if (!window.layerInfo?.layerName) {
+    throw "window.layerInfo?.layerNameが空欄です。";
+}
+
+if (!Array.isArray(window.functionInfos)) {
+    throw "window.functionInfosが配列ではありません。";
+}
+
+if (window.functionId) {
     // パラメーター編集モード
     setupEditor1B(window.functionInfos, handleSave);
 }
 else {
     // コード編集モード
-    if (!Array.isArray(window.functionInfos)) {
-        throw "window.functionInfosが配列ではありません。";
-    }
     setupEditor1(window.functionInfos, handleSave);
 }
 
-async function handleSave(functionInfos: Array<FunctionInfo>, isReload: boolean) {
+async function handleSave(functionInfos: Array<FunctionInfo>) {
+    if (!window.layerInfo?.layerId) {
+        throw "window.layerInfo?.layerIdが空欄です。";
+    }
     const bodyText = JSON.stringify({
         layerId: window.layerInfo.layerId,
         functionInfos: functionInfos,
     });
-    console.log(bodyText);
     const res = await window.fetch(
         "/code",
         {
@@ -33,9 +43,6 @@ async function handleSave(functionInfos: Array<FunctionInfo>, isReload: boolean)
         }
     );
     console.log(await res.text());
-    if (isReload) {
-        location.reload();
-    }
 }
 
 interface LayerInfo {
@@ -48,5 +55,6 @@ declare global {
         layerInfo: LayerInfo,
         functionId: string,
         functionInfos: Array<FunctionInfo>
+        Popper: any,
     }
 }

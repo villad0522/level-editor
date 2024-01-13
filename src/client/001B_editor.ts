@@ -1,86 +1,73 @@
-import * as monaco from 'monaco-editor';
-import { setupEditor4 } from './004_editor';
 
-export interface FunctionInfo {
-    functionId: string,     // 関数のID
-    functionName: string,   // 関数名
-    beforeCode: string,     // 関数の直前のコード
-    innerCode: string,      // 関数の中身のコード
-    afterCode: string,      // 関数の直後のコード
-    parametersName: Array<string>,  // 引数の名前
-    parametersDataType: Array<any>,    // 引数の型
-    returnValue: any,       // 戻り値
-};
+import * as Popper from '@popperjs/core'
+window.Popper = Popper
 
-export type Savefunc = (functionInfos: Array<FunctionInfo>, isReload: boolean) => void;
+import 'bootstrap'
+import { setupEditor2B, FunctionInfo } from "./002B_editor.ts";
 
-let buf: Array<FunctionInfo> | null;
+export type Savefunc = (functionInfos: Array<FunctionInfo>) => Promise<any>;
 
 export function setupEditor1B(functionInfos: Array<FunctionInfo>, onSave: Savefunc) {
-    buf = structuredClone(functionInfos);
-    const obj: any = _getFunctionInfo(buf);
-    delete obj.functionId;
-    delete obj.beforeCode;
-    delete obj.innerCode;
-    delete obj.afterCode;
-    const text = JSON.stringify(obj, null, 2);
     //===============================================================
     // エディター初期化
-    const editor = setupEditor4(text, "json", () => handleSave(onSave, editor));
+    setupEditor2B(functionInfos, onSave);
     //
     //===============================================================
+    //
+    for (const functionInfo of functionInfos) {
+        setupSideMenu(functionInfo);
+    }
 }
 
-function handleSave(onSave: Savefunc, editor: monaco.editor.IStandaloneCodeEditor) {
-    const text = editor.getValue();
-    let obj: any;
-    try {
-        obj = JSON.parse(text);
-    }
-    catch (err) {
-        alert("JSON形式に変換できません");
-        return;
-    }
-    if (!buf) {
-        throw "バッファーがNULLです";
-    }
-    for (let i = 0; i < buf.length; i++) {
-        if (buf[i].functionId === window.functionId) {
-            buf[i] = {
-                ...buf[i],
-                ...obj,
-            };
-            onSave(buf, false);
-            return;
-        }
-    }
-    // 編集対象の関数が見つからない場合、新規作成する
-    buf.push({
-        ...obj,
-        functionId: window.functionId,
-        beforeCode: "\n",     // 関数の直前のコード
-        innerCode: "\n  console.log();\n",      // 関数の中身のコード
-        afterCode: "\n",      // 関数の直後のコード
-    });
-    onSave(buf, true);
-    return;
-}
 
-function _getFunctionInfo(functionInfos: Array<FunctionInfo>): FunctionInfo {
-    for (const info of functionInfos) {
-        if (info.functionId === window.functionId) {
-            return structuredClone(info);
-        }
+function setupSideMenu(functionInfo: FunctionInfo) {
+    const sidebarElement = document.getElementById("side_button_group");
+    //
+    //
+    if (functionInfo.functionId == window.functionId) {
+        const divElement = document.createElement("div");
+        divElement.classList.add("btn-group");
+        divElement.role = "group";
+        sidebarElement?.appendChild(divElement);
+        //
+        const buttonElement3 = document.createElement("button");
+        buttonElement3.innerText = functionInfo.functionNameJP;
+        buttonElement3.classList.add("btn");
+        buttonElement3.classList.add("btn-primary");
+        buttonElement3.classList.add("dropdown-toggle");
+        buttonElement3.setAttribute("data-bs-toggle", "dropdown");
+        buttonElement3.setAttribute("aria-expanded", "false");
+        divElement?.appendChild(buttonElement3);
+        //
+        const ulElement = document.createElement("ul");
+        ulElement.classList.add("dropdown-menu");
+        divElement?.appendChild(ulElement);
+        //
+        const liElement1 = document.createElement("li");
+        ulElement.appendChild(liElement1);
+        //
+        const buttonElement1 = document.createElement("a");
+        buttonElement1.href = `./?layer=${window.layerInfo.layerId}`;
+        buttonElement1.classList.add("dropdown-item");
+        buttonElement1.innerText = "コード";
+        liElement1?.appendChild(buttonElement1);
+        //
+        const liElement2 = document.createElement("li");
+        ulElement.appendChild(liElement2);
+        //
+        const buttonElement2 = document.createElement("a");
+        buttonElement2.innerText = "定義";
+        buttonElement2.classList.add("dropdown-item");
+        buttonElement2.href = `./?layer=${window.layerInfo?.layerId}&func=${functionInfo.functionId}`;
+        liElement2?.appendChild(buttonElement2);
+        //
     }
-    // 編集対象の関数が見つからない場合、新規作成する
-    return {
-        functionId: window.functionId,  // 関数のID
-        functionName: "myFunc",   // 関数名
-        beforeCode: "\n",     // 関数の直前のコード
-        innerCode: "\n  console.log();\n",      // 関数の中身のコード
-        afterCode: "\n",      // 関数の直後のコード
-        parametersName: [],
-        parametersDataType: [],
-        returnValue: "void",       // 戻り値
+    else {
+        const buttonElement1 = document.createElement("button");
+        buttonElement1.disabled = true;
+        buttonElement1.innerText = functionInfo.functionNameJP;
+        buttonElement1.classList.add("btn");
+        buttonElement1.classList.add("btn-outline-primary");
+        sidebarElement?.appendChild(buttonElement1);
     }
 }

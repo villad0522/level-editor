@@ -10,6 +10,8 @@ import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 
 export type Savefunc = () => void;
 
+let timerId: NodeJS.Timeout;
+
 export function setupEditor4(initText: string, language: string, onSave: Savefunc): monaco.editor.IStandaloneCodeEditor {
     //===============================================================
     // エディター初期化
@@ -28,7 +30,12 @@ export function setupEditor4(initText: string, language: string, onSave: Savefun
     // 自動保存
     const model = editor.getModel();
     model?.onDidChangeContent((event) => {
-        onSave();
+        if (timerId) {
+            clearTimeout(timerId);
+        }
+        timerId = setTimeout(() => {
+            onSave();
+        }, 2000);
     });
     //
     //===============================================================

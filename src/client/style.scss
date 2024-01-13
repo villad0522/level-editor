@@ -1,3 +1,5 @@
+@import "bootstrap/scss/bootstrap";
+
 html {
   overflow: hidden;
   margin: 0;
@@ -35,12 +37,17 @@ header>* {
 }
 
 .sidebar {
-  min-width: 250px;
+  max-width: 300px;
   height: 100%;
   background: #222;
   overflow-x: hidden;
-  overflow-y: scroll;
+  overflow-y: auto;
   color: #fff;
+  padding: 30px 5px;
+}
+
+.sidebar>*{
+  width: 100%;
 }
 
 main {

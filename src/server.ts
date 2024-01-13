@@ -6,7 +6,7 @@ import { ViteDevServer } from 'vite';
 // Constants
 const isProduction = process.env.NODE_ENV === 'production'
 const port = process.env.PORT || 5173
-const base = path.join(process.env.BASE || '/', "./src/client/").replaceAll("\\", "/");
+const base = path.join(process.env.BASE || '/', "./client/").replaceAll("\\", "/");
 
 // Cached production assets
 const templateHtml = isProduction
@@ -35,21 +35,16 @@ if (!isProduction) {
     const compression = (await import('compression')).default
     const sirv = (await import('sirv')).default
     app.use(compression())
-    app.use(base, sirv('./dist/client', { extensions: [] }))
+    app.use(base, sirv('../dist/client', { extensions: [] }))
 }
 
 app.post("/code", async (req, res) => {
-    console.log("postpostpostpostpostpostpostpostpostpostpostpostpostpostpost");
-    console.log(req.method);
-    console.log(req.path);
-    console.log(typeof req.body);
-    console.log(req.body);
     if (!vite) return;
     let saveCode;
     if (!isProduction) {
-        saveCode = (await vite.ssrLoadModule('/src/server/entry-server.ts')).saveCode;
+        saveCode = (await vite.ssrLoadModule('/server/entry-server.ts')).saveCode;
     } else {
-        saveCode = (await import('./dist/server/entry-server.ts' ?? "")).saveCode;
+        saveCode = (await import('../dist/server/entry-server.ts' ?? "")).saveCode;
     }
     await saveCode(req.body.layerId, req.body.functionInfos);
     res.send("保存しました");
@@ -59,9 +54,6 @@ app.post("/code", async (req, res) => {
 app.use('/', async (req, res) => {
     if (!vite) return;
     if (req.method !== "GET") return;
-    console.log("getgetgetgetgetgetgetgetgetgetgetgetgetgetgetgetgetgetgetgetget");
-    console.log(req.method);
-    console.log(req.path);
     try {
         const url = req.originalUrl.replace(base, '')
 
@@ -71,10 +63,10 @@ app.use('/', async (req, res) => {
             // Always read fresh template in development
             template = await fs.promises.readFile('./src/client/index.html', 'utf-8')
             template = await vite.transformIndexHtml(url, template)
-            render = (await vite.ssrLoadModule('/src/server/entry-server.ts')).render
+            render = (await vite.ssrLoadModule('/server/entry-server.ts')).render
         } else {
             template = templateHtml
-            render = (await import('./dist/server/entry-server.ts' ?? "")).render
+            render = (await import('../dist/server/entry-server.ts' ?? "")).render
         }
 
         const rendered = await render(url, ssrManifest, req.query)

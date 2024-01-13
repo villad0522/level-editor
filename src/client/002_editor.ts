@@ -3,7 +3,8 @@ import { setupEditor3, Section } from "./003_editor.ts";
 
 export interface FunctionInfo {
     functionId: string,     // 関数のID
-    functionName: string,   // 関数名
+    functionNameJP: string,   // 関数名
+    functionNameEN: string,   // 関数名
     beforeCode: string,     // 関数の直前のコード
     innerCode: string,      // 関数の中身のコード
     afterCode: string,      // 関数の直後のコード
@@ -30,7 +31,8 @@ export function setupEditor2(functionInfos: Array<FunctionInfo>, onSave: Savefun
     for (const functionInfo of functionInfos) {
         const {
             functionId,  // 関数のID
-            functionName,   // 関数名
+            functionNameJP,   // 関数名
+            functionNameEN,   // 関数名
             beforeCode,     // 関数の直前のコード
             innerCode,      // 関数の中身のコード
             afterCode,      // 関数の直後のコード
@@ -43,7 +45,7 @@ export function setupEditor2(functionInfos: Array<FunctionInfo>, onSave: Savefun
         });
         //
         sections.push({
-            code: `export async function ${functionName}( ${parametersName.join(", ")} ){`,
+            code: `export async function ${functionNameEN}( ${parametersName.join(", ")} ){`,
             className: "START_" + functionId,
         });
         //
@@ -118,7 +120,6 @@ function handleSave(sections: Array<Section>, functionInfos: Array<FunctionInfo>
     if (newInfos.length === 0) {
         throw "[ERROR_005] 関数が１つも存在しません。最低１つ以上は必要です。";
     }
-    console.log(newInfos);
     newInfos[newInfos.length - 1].afterCode = beforeCodes.join();
     onSave(newInfos);
 }

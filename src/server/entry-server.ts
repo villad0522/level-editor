@@ -12,7 +12,7 @@ export async function render(url: string, ssrManifest: string | undefined, query
   const layerList = await _getLayerList();
   //
   let layerInfo: LayerInfo | null = null;
-  let functionInfos: Array<FunctionInfo>;
+  let functionInfos: Array<FunctionInfo> = [];
   if (queryParameters["layer"] === "new") {
     console.log("新しいレイヤーを作成します");
     const result = await _createLayer(layerList, "新しいレイヤー");
@@ -45,34 +45,65 @@ export async function render(url: string, ssrManifest: string | undefined, query
     }
     functionInfos = await _getCode(queryParameters["layer"]);
   }
+  //
+  if (!Array.isArray(functionInfos)) {
+    functionInfos = [];
+  }
+  const functionInfos2 = [];
+  for (const functionInfo of functionInfos) {
+    if (functionInfo?.functionId) {
+      functionInfos2.push(functionInfo);
+    }
+  }
 
   //
   let headerHTML = "";
-  for (const layerInfo of layerList) {
-    headerHTML += `
-      <a href="./?layer=${encodeURIComponent(layerInfo?.layerId)}">
-        ${layerInfo?.layerName}
-      </a>
-    `;
+  for (const info of layerList) {
+    if (info?.layerId === layerInfo.layerId) {
+      headerHTML += `
+        <li class="nav-item">
+          <a class="nav-link active" href="./?layer=${encodeURIComponent(info?.layerId)}">
+            ${info?.layerName}
+          </a>
+        </li>
+      `;
+    }
+    else {
+      headerHTML += `
+        <li class="nav-item">
+          <a class="nav-link" href="./?layer=${encodeURIComponent(info?.layerId)}">
+            ${info?.layerName}
+          </a>
+        </li>
+      `;
+    }
   }
   return {
     head: `
       <script>
         window.layerInfo = ${JSON.stringify(layerInfo, null, 2)};
-        window.functionId = "${queryParameters["functionId"] ?? ""}";
-        window.functionInfos = ${JSON.stringify(functionInfos, null, 2)};
+        window.functionId = "${queryParameters["func"] ?? ""}";
+        window.functionInfos = ${JSON.stringify(functionInfos2, null, 2)};
       </script>
     `,
     body: `
       <header>
-        ${headerHTML}
-        <a href="./?layer=new">
-          レイヤーを新規作成
-        </a>
+        <ul class="nav nav-tabs">
+          ${headerHTML}
+          <li class="nav-item">
+            <a class="nav-link" href="./?layer=new">
+              レイヤーを新規作成
+            </a>
+          </li>
+        </ul>
       </header>
       <div class="tab_body">
         <div class="sidebar">
-          <a href="./?layer=${layerInfo.layerId}&func=${ulid()}">
+          <div id="side_button_group" class="btn-group-vertical" role="group" aria-label="Vertical button group">
+          </div>
+          <br>
+          <br>
+          <a class="btn btn-primary" href="./?layer=${layerInfo.layerId}&func=${ulid()}">
             関数を新規作成
           </a>
         </div>
@@ -87,7 +118,8 @@ export async function render(url: string, ssrManifest: string | undefined, query
 
 interface FunctionInfo {
   functionId: string,     // 関数のID
-  functionName: string,   // 関数名
+  functionNameJP: string,   // 関数名
+  functionNameEN: string,   // 関数名
   beforeCode: string,     // 関数の直前のコード
   innerCode: string,      // 関数の中身のコード
   afterCode: string,      // 関数の直後のコード
@@ -189,38 +221,3 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
 }
 
 //##########################################################################
-
-const functionInfos = [
-  {
-    functionId: "01HKTVXEEE0Z7FAQWBK2365SBY",  // 関数のID
-    functionName: "myFunc1",   // 関数名
-    beforeCode: "\n",     // 関数の直前のコード
-    innerCode: "\n  console.log();\n",      // 関数の中身のコード
-    afterCode: "\n",      // 関数の直後のコード
-    parametersName: [       // 引数の名前
-      "param1",
-      "param2",
-    ],
-    parametersDataType: [       // 引数の型
-      "string",
-      {
-        "param3": "number",
-        "param4": ["string"],
-      },
-    ],
-    returnValue: {      // 戻り値
-      "param5": "number",
-      "param6": ["string"],
-    },
-  },
-  {
-    functionId: "01HKVVB83071NVCSSWDT7256F8",  // 関数のID
-    functionName: "myFunc2",   // 関数名
-    beforeCode: "\n",     // 関数の直前のコード
-    innerCode: "\n  console.log();\n",      // 関数の中身のコード
-    afterCode: "\n",      // 関数の直後のコード
-    parametersName: [],
-    parametersDataType: [],
-    returnValue: "string",       // 戻り値
-  }
-];

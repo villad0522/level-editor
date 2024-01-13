@@ -1,12 +1,16 @@
 import * as monaco from 'monaco-editor';
+import * as Popper from '@popperjs/core'
+window.Popper = Popper
+
+import 'bootstrap'
 import { setupEditor2, FunctionInfo as F } from "./002_editor.ts";
 
 export type FunctionInfo = F;
 
-export type Savefunc = (functionInfos: Array<FunctionInfo>, isReload: boolean) => void;
+export type Savefunc = (functionInfos: Array<FunctionInfo>) => void;
 
 export function setupEditor1(functionInfos: Array<FunctionInfo>, onSave: Savefunc) {
-    const editor = setupEditor2(functionInfos, (functionInfos) => onSave(functionInfos, false));
+    const editor = setupEditor2(functionInfos, onSave);
     //
     for (const functionInfo of functionInfos) {
         setupSideMenu(functionInfo, editor);
@@ -15,25 +19,44 @@ export function setupEditor1(functionInfos: Array<FunctionInfo>, onSave: Savefun
 
 
 function setupSideMenu(functionInfo: FunctionInfo, editor: monaco.editor.IStandaloneCodeEditor) {
-    const sidebarElement = document.querySelector(".sidebar");
+    const sidebarElement = document.getElementById("side_button_group");
     //
-    const labelElement = document.createElement("h4");
-    labelElement.innerText = functionInfo.functionName;
-    sidebarElement?.appendChild(labelElement);
+    const divElement = document.createElement("div");
+    divElement.classList.add("btn-group");
+    divElement.role = "group";
+    sidebarElement?.appendChild(divElement);
+    //
+    const buttonElement3 = document.createElement("button");
+    buttonElement3.innerText = functionInfo.functionNameJP;
+    buttonElement3.classList.add("btn");
+    buttonElement3.classList.add("btn-outline-primary");
+    buttonElement3.classList.add("dropdown-toggle");
+    buttonElement3.setAttribute("data-bs-toggle", "dropdown");
+    buttonElement3.setAttribute("aria-expanded", "false");
+    divElement?.appendChild(buttonElement3);
+    //
+    const ulElement = document.createElement("ul");
+    ulElement.classList.add("dropdown-menu");
+    divElement?.appendChild(ulElement);
+    //
+    const liElement1 = document.createElement("li");
+    ulElement.appendChild(liElement1);
     //
     const buttonElement1 = document.createElement("button");
-    buttonElement1.innerText = "コード";
-    sidebarElement?.appendChild(buttonElement1);
     buttonElement1?.addEventListener("click", () => handleClick(functionInfo, editor));
+    buttonElement1.classList.add("dropdown-item");
+    buttonElement1.innerText = "コード";
+    liElement1?.appendChild(buttonElement1);
     //
-    if (functionInfo.functionId == window.functionId) {
-        //
-        const buttonElement2 = document.createElement("a");
-        buttonElement2.innerText = "定義";
-        buttonElement2.href = `./?layer=${window.layerInfo?.layerId}&func=${functionInfo.functionId}`;
-        sidebarElement?.appendChild(buttonElement2);
-        //
-    }
+    const liElement2 = document.createElement("li");
+    ulElement.appendChild(liElement2);
+    //
+    const buttonElement2 = document.createElement("a");
+    buttonElement2.innerText = "定義";
+    buttonElement2.classList.add("dropdown-item");
+    buttonElement2.href = `./?layer=${window.layerInfo?.layerId}&func=${functionInfo.functionId}`;
+    liElement2?.appendChild(buttonElement2);
+    //
 }
 
 
@@ -53,7 +76,6 @@ function handleClick(functionInfo: FunctionInfo, editor: monaco.editor.IStandalo
             continue;
         }
         const lineNumber = decoration.range.startLineNumber;
-        console.log(lineNumber);
         // 特定の位置にスクロール
         editor.revealLineNearTop(lineNumber, monaco.editor.ScrollType.Smooth);
         return;
