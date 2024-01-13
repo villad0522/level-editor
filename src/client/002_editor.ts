@@ -45,7 +45,7 @@ export function setupEditor2(functionInfos: Array<FunctionInfo>, onSave: Savefun
         });
         //
         sections.push({
-            code: `export async function ${functionNameEN}( ${parametersName.join(", ")} ){`,
+            code: `// ${functionNameJP}\nasync function ${functionNameEN}( ${parametersName.join(", ")} ){`,
             className: "START_" + functionId,
         });
         //

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from "path";
 import express from 'express';
+import opener from "opener";
 import { ViteDevServer } from 'vite';
 
 // Constants
@@ -42,9 +43,9 @@ app.post("/code", async (req, res) => {
     if (!vite) return;
     let saveCode;
     if (!isProduction) {
-        saveCode = (await vite.ssrLoadModule('/server/entry-server.ts')).saveCode;
+        saveCode = (await vite.ssrLoadModule('/server/save_code.ts')).saveCode;
     } else {
-        saveCode = (await import('../dist/server/entry-server.ts' ?? "")).saveCode;
+        saveCode = (await import('../dist/server/save_code.ts' ?? "")).saveCode;
     }
     await saveCode(req.body.layerId, req.body.functionInfos);
     res.send("保存しました");
@@ -87,4 +88,5 @@ app.use('/', async (req, res) => {
 // Start http server
 app.listen(port, () => {
     console.log(`Server started at http://localhost:${port}`)
+    opener(`http://localhost:${port}`);
 })

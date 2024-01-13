@@ -41,6 +41,10 @@ async function handleSave(onSave: Savefunc, editor: monaco.editor.IStandaloneCod
     catch (err) {
         throw "JSON形式に変換できません";
     }
+    //
+    if (obj.parametersDataType.length !== obj.parametersName.length) {
+        throw "引数の個数が一致しません";
+    }
     if (!Array.isArray(buf)) {
         throw "バッファーがNULLです";
     }

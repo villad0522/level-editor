@@ -7,10 +7,6 @@ if (!window.layerInfo?.layerId) {
     throw "window.layerInfo?.layerIdが空欄です。";
 }
 
-if (!window.layerInfo?.layerName) {
-    throw "window.layerInfo?.layerNameが空欄です。";
-}
-
 if (!Array.isArray(window.functionInfos)) {
     throw "window.functionInfosが配列ではありません。";
 }
@@ -47,7 +43,8 @@ async function handleSave(functionInfos: Array<FunctionInfo>) {
 
 interface LayerInfo {
     layerId: string,
-    layerName: string
+    layerNameJP: string,
+    layerNameEN: string
 }
 
 declare global {

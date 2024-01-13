@@ -1,5 +1,6 @@
 import fs from "fs";
 import { ulid } from "ulid";
+import savePath from "./save_path";
 
 type QueryParameters = { [key: string]: string } | null;
 
@@ -9,13 +10,13 @@ export async function render(url: string, ssrManifest: string | undefined, query
   if (!queryParameters) {
     queryParameters = {};
   }
-  const layerList = await _getLayerList();
+  const layerList: Array<LayerInfo> = await getLayerList();
   //
   let layerInfo: LayerInfo | null = null;
   let functionInfos: Array<FunctionInfo> = [];
   if (queryParameters["layer"] === "new") {
     console.log("新しいレイヤーを作成します");
-    const result = await _createLayer(layerList, "新しいレイヤー");
+    const result = await _createLayer(layerList);
     layerInfo = result.layerInfo;
     layerList.push(result.layerInfo);
     functionInfos = result.functionInfos;
@@ -23,11 +24,11 @@ export async function render(url: string, ssrManifest: string | undefined, query
   else if (!queryParameters["layer"]) {
     if (layerList.length >= 1) {
       layerInfo = layerList[0];
-      functionInfos = await _getCode(layerList[0]["layerId"]);
+      functionInfos = await getCode(layerList[0]["layerId"]);
     }
     else {
       console.log("新しいレイヤーを作成します");
-      const result = await _createLayer(layerList, "新しいレイヤー");
+      const result = await _createLayer(layerList);
       layerInfo = result.layerInfo;
       layerList.push(result.layerInfo);
       functionInfos = result.functionInfos;
@@ -43,7 +44,7 @@ export async function render(url: string, ssrManifest: string | undefined, query
     if (!layerInfo) {
       throw new Error(`レイヤーが存在しません。${queryParameters["layer"]}`);
     }
-    functionInfos = await _getCode(queryParameters["layer"]);
+    functionInfos = await getCode(queryParameters["layer"]);
   }
   //
   if (!Array.isArray(functionInfos)) {
@@ -63,7 +64,7 @@ export async function render(url: string, ssrManifest: string | undefined, query
       headerHTML += `
         <li class="nav-item">
           <a class="nav-link active" href="./?layer=${encodeURIComponent(info?.layerId)}">
-            ${info?.layerName}
+            ${info?.layerNameJP}
           </a>
         </li>
       `;
@@ -72,7 +73,7 @@ export async function render(url: string, ssrManifest: string | undefined, query
       headerHTML += `
         <li class="nav-item">
           <a class="nav-link" href="./?layer=${encodeURIComponent(info?.layerId)}">
-            ${info?.layerName}
+            ${info?.layerNameJP}
           </a>
         </li>
       `;
@@ -89,12 +90,12 @@ export async function render(url: string, ssrManifest: string | undefined, query
     body: `
       <header>
         <ul class="nav nav-tabs">
-          ${headerHTML}
           <li class="nav-item">
             <a class="nav-link" href="./?layer=new">
               レイヤーを新規作成
             </a>
           </li>
+          ${headerHTML}
         </ul>
       </header>
       <div class="tab_body">
@@ -128,15 +129,16 @@ interface FunctionInfo {
   returnValue: any,       // 戻り値
 };
 
-interface LayerInfo {
+export interface LayerInfo {
   layerId: string,
-  layerName: string
+  layerNameJP: string,
+  layerNameEN: string
 }
 
 //##########################################################################
 
-async function _getLayerList(): Promise<Array<LayerInfo>> {
-  const path = `C:\\Users\\kimura\\Documents\\level-editor\\savedata\\layer_list.json`;
+export async function getLayerList(): Promise<Array<LayerInfo>> {
+  const path = savePath + `layer_list.json`;
   if (!fs.existsSync(path)) {
     // ファイルが存在しない場合
     await fs.promises.writeFile(path, "[]");
@@ -157,7 +159,10 @@ async function _getLayerList(): Promise<Array<LayerInfo>> {
     if (!layerInfo) {
       throw new Error("layer_list.jsonの書式が間違っています");
     }
-    if (!layerInfo.layerName) {
+    if (!layerInfo.layerNameJP) {
+      throw new Error("layer_list.jsonの書式が間違っています");
+    }
+    if (!layerInfo.layerNameEN) {
       throw new Error("layer_list.jsonの書式が間違っています");
     }
     if (!layerInfo.layerId) {
@@ -169,8 +174,8 @@ async function _getLayerList(): Promise<Array<LayerInfo>> {
 
 //##########################################################################
 
-async function _getCode(layerId: string): Promise<Array<FunctionInfo>> {
-  const path = `C:\\Users\\kimura\\Documents\\level-editor\\savedata\\${layerId}.json`;
+export async function getCode(layerId: string): Promise<Array<FunctionInfo>> {
+  const path = savePath + `${layerId}.json`;
   if (!fs.existsSync(path)) {
     throw new Error(`ファイルが存在しません。${path}`);
   }
@@ -190,34 +195,27 @@ interface Code {
   functionInfos: Array<FunctionInfo>,
 }
 
-async function _createLayer(layerList: Array<LayerInfo>, layerName: string): Promise<Code> {
+async function _createLayer(layerList: Array<LayerInfo>): Promise<Code> {
   const layerId = ulid();
   const functionInfos: Array<FunctionInfo> = [];
-  const path1 = `C:\\Users\\kimura\\Documents\\level-editor\\savedata\\${layerId}.json`;
+  const path1 = savePath + `${layerId}.json`;
   await fs.promises.writeFile(path1, JSON.stringify(functionInfos));
   //
-  const path2 = `C:\\Users\\kimura\\Documents\\level-editor\\savedata\\layer_list.json`;
+  const path2 = savePath + `layer_list.json`;
   const layerInfo: LayerInfo = {
     layerId: layerId,
-    layerName: layerName,
+    layerNameJP: "新しいレイヤー",
+    layerNameEN: "layerName",
   };
   await fs.promises.writeFile(path2, JSON.stringify([
-    ...layerList,
     layerInfo,
-  ]));
+    ...layerList,
+  ], null, 2));
   //
   return {
     layerInfo,
     functionInfos
   };
-}
-
-//##########################################################################
-
-export async function saveCode(layerId: string, functionInfos: Array<FunctionInfo>) {
-  console.log(functionInfos);
-  const path = `C:\\Users\\kimura\\Documents\\level-editor\\savedata\\${layerId}.json`;
-  await fs.promises.writeFile(path, JSON.stringify(functionInfos));
 }
 
 //##########################################################################
