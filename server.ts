@@ -1,22 +1,25 @@
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
+import path from "path";
 import express from 'express';
 import { ViteDevServer } from 'vite';
 
 // Constants
 const isProduction = process.env.NODE_ENV === 'production'
 const port = process.env.PORT || 5173
-const base = process.env.BASE || '/'
+const base = path.join(process.env.BASE || '/', "./src/client/").replaceAll("\\", "/");
 
 // Cached production assets
 const templateHtml = isProduction
-    ? await fs.readFile('./dist/client/index.html', 'utf-8')
+    ? await fs.promises.readFile('./dist/client/index.html', 'utf-8')
     : ''
 const ssrManifest = isProduction
-    ? await fs.readFile('./dist/client/.vite/ssr-manifest.json', 'utf-8')
+    ? await fs.promises.readFile('./dist/client/.vite/ssr-manifest.json', 'utf-8')
     : undefined
 
 // Create http server
 const app = express()
+
+app.use(express.json());
 
 // Add Vite or respective production middlewares
 let vite: ViteDevServer | null;
@@ -25,7 +28,7 @@ if (!isProduction) {
     vite = await createServer({
         server: { middlewareMode: true },
         appType: 'custom',
-        base
+        base: base,
     })
     app.use(vite.middlewares)
 } else {
@@ -35,9 +38,30 @@ if (!isProduction) {
     app.use(base, sirv('./dist/client', { extensions: [] }))
 }
 
-// Serve HTML
-app.use('*', async (req, res) => {
+app.post("/code", async (req, res) => {
+    console.log("postpostpostpostpostpostpostpostpostpostpostpostpostpostpost");
+    console.log(req.method);
+    console.log(req.path);
+    console.log(typeof req.body);
+    console.log(req.body);
     if (!vite) return;
+    let saveCode;
+    if (!isProduction) {
+        saveCode = (await vite.ssrLoadModule('/src/server/entry-server.ts')).saveCode;
+    } else {
+        saveCode = (await import('./dist/server/entry-server.ts' ?? "")).saveCode;
+    }
+    await saveCode(req.body.layerId, req.body.functionInfos);
+    res.send("保存しました");
+});
+
+// Serve HTML
+app.use('/', async (req, res) => {
+    if (!vite) return;
+    if (req.method !== "GET") return;
+    console.log("getgetgetgetgetgetgetgetgetgetgetgetgetgetgetgetgetgetgetgetget");
+    console.log(req.method);
+    console.log(req.path);
     try {
         const url = req.originalUrl.replace(base, '')
 
@@ -45,7 +69,7 @@ app.use('*', async (req, res) => {
         let render
         if (!isProduction) {
             // Always read fresh template in development
-            template = await fs.readFile('./src/client/index.html', 'utf-8')
+            template = await fs.promises.readFile('./src/client/index.html', 'utf-8')
             template = await vite.transformIndexHtml(url, template)
             render = (await vite.ssrLoadModule('/src/server/entry-server.ts')).render
         } else {
@@ -53,13 +77,11 @@ app.use('*', async (req, res) => {
             render = (await import('./dist/server/entry-server.ts' ?? "")).render
         }
 
-        const rendered = await render(url, ssrManifest)
+        const rendered = await render(url, ssrManifest, req.query)
 
         const html = template
             .replace(`<!--app-head-->`, rendered.head ?? '')
-            .replace(`<!--app-header-->`, rendered.header ?? '')
-            .replace(`<!--app-sidebar-->`, rendered.sidebar ?? '')
-            .replace(`<!--app-main-->`, rendered.main ?? '')
+            .replace(`<!--app-body-->`, rendered.body ?? '')
 
         res.status(200).set({ 'Content-Type': 'text/html' }).end(html)
     } catch (error) {

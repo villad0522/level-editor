@@ -1,0 +1,50 @@
+html {
+  overflow: hidden;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  min-height: 50px;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  display: flex;
+}
+
+header>* {
+  min-width: max-content;
+  margin: 0 10px;
+}
+
+.tab_body {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebar {
+  min-width: 250px;
+  height: 100%;
+  background: #222;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  color: #fff;
+}
+
+main {
+  overflow: hidden;
+  margin: 0;
+  flex: 1;
+}

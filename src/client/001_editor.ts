@@ -1,137 +1,62 @@
+import * as monaco from 'monaco-editor';
+import { setupEditor2, FunctionInfo as F } from "./002_editor.ts";
 
-import { setupEditor2, Section } from "./002_editor.ts";
+export type FunctionInfo = F;
 
-export interface FunctionInfo {
-    functionId: string,     // 関数のID
-    functionName: string,   // 関数名
-    beforeCode: string,     // 関数の直前のコード
-    innerCode: string,      // 関数の中身のコード
-    afterCode: string,      // 関数の直後のコード
-    parametersName: Array<string>,  // 引数の名前
-    parametersDataType: Array<any>,    // 引数の型
-    returnValue: any,       // 戻り値
-};
-
-type Savefunc = (functionInfos: Array<FunctionInfo>) => void;
-
-//#########################################################################################
-//#########################################################################################
-// 初期化処理
-//#########################################################################################
-//#########################################################################################
+export type Savefunc = (functionInfos: Array<FunctionInfo>, isReload: boolean) => void;
 
 export function setupEditor1(functionInfos: Array<FunctionInfo>, onSave: Savefunc) {
-    const appElement = document.getElementById("app");
-    appElement?.style.setProperty("display", "none");
-
-    // エディターの初期値（文字列の配列）
-    const sections: Array<Section> = [];
-
+    const editor = setupEditor2(functionInfos, (functionInfos) => onSave(functionInfos, false));
+    //
     for (const functionInfo of functionInfos) {
-        const {
-            functionId,  // 関数のID
-            functionName,   // 関数名
-            beforeCode,     // 関数の直前のコード
-            innerCode,      // 関数の中身のコード
-            afterCode,      // 関数の直後のコード
-            parametersName,       // 引数の名前
-        } = functionInfo;
-        //
-        sections.push({
-            code: (beforeCode.length >= 1) ? beforeCode : "\n",  // 編集可能領域が空文字だとバグるため、\nを入れる
-            className: null,
-        });
-        //
-        sections.push({
-            code: `export async function ${functionName}( ${parametersName.join(", ")} ){`,
-            className: "START_" + functionId,
-        });
-        //
-        sections.push({
-            code: (beforeCode.length >= 1) ? innerCode : "\n", // 編集可能領域が空文字だとバグるため、\nを入れる
-            className: null,
-        });
-        //
-        sections.push({
-            code: `}`,
-            className: "END_" + functionId,
-        });
-        //
-        sections.push({
-            code: afterCode,
-            className: null,
-        });
+        setupSideMenu(functionInfo, editor);
     }
-
-    setupEditor2(sections, (sections) => handleSave(sections, functionInfos, onSave));
 }
 
 
-//#########################################################################################
-//#########################################################################################
-// 保存するときの処理
-//#########################################################################################
-//#########################################################################################
-
-function handleSave(sections: Array<Section>, functionInfos: Array<FunctionInfo>, onSave: Savefunc) {
-    console.log(sections);
-    const newInfos: Array<FunctionInfo> = [];
+function setupSideMenu(functionInfo: FunctionInfo, editor: monaco.editor.IStandaloneCodeEditor) {
+    const sidebarElement = document.querySelector(".sidebar");
     //
-    // 一時的な記憶に使う変数
-    let functionId: string | null = null; // 現在スキャン中の関数のID
-    let lastFunctionId: string | null = null; // 最後にスキャンしたの関数のID
-    let beforeCodes: Array<string> = [];  // 関数の直前のコード
-    let innerCodes: Array<string> = [];   // 関数の中身のコード
+    const labelElement = document.createElement("h4");
+    labelElement.innerText = functionInfo.functionName;
+    sidebarElement?.appendChild(labelElement);
     //
-    for (const section of sections) {
-        const className = section.className;
-        if (!className) {
-            if (!functionId) {
-                // どの関数にも属していない場合
-                beforeCodes.push(section.code);
-                continue;
-            }
-            else {
-                // 関数の中身
-                innerCodes.push(section.code);
-                continue;
-            }
-        }
-        else if (className.startsWith("START")) {
-            // 関数の開始
-            functionId = className.replace("START_", "");
-            lastFunctionId = functionId;
-        }
-        else if (className.startsWith("END")) {
-            // 関数の終了
-            if (!functionId) {
-                throw "[ERROR_001] 関数の始まりが見つかりません";
-            }
-            newInfos.push({
-                ..._getInfo(functionInfos, functionId),
-                beforeCode: beforeCodes.join(),
-                innerCode: innerCodes.join(),
-                afterCode: "",
-            });
-            functionId = null;
-            beforeCodes = [];
-            innerCodes = [];
-        }
+    const buttonElement1 = document.createElement("button");
+    buttonElement1.innerText = "コード";
+    sidebarElement?.appendChild(buttonElement1);
+    buttonElement1?.addEventListener("click", () => handleClick(functionInfo, editor));
+    //
+    if (functionInfo.functionId == window.functionId) {
+        //
+        const buttonElement2 = document.createElement("a");
+        buttonElement2.innerText = "定義";
+        buttonElement2.href = `./?layer=${window.layerInfo?.layerId}&func=${functionInfo.functionId}`;
+        sidebarElement?.appendChild(buttonElement2);
+        //
     }
-    if (newInfos.length === 0) {
-        throw "[ERROR_005] 関数が１つも存在しません。最低１つ以上は必要です。";
-    }
-    console.log(newInfos);
-    newInfos[newInfos.length - 1].afterCode = beforeCodes.join();
-    onSave(newInfos);
 }
 
-function _getInfo(functionInfos: Array<FunctionInfo>, functionId: string) {
-    for (let i = 0; i < functionInfos.length; i++) {
-        if (functionInfos[i].functionId !== functionId) {
+
+
+
+function handleClick(functionInfo: FunctionInfo, editor: monaco.editor.IStandaloneCodeEditor) {
+    const model = editor.getModel();
+    if (!model) return;
+
+    const allRange = new monaco.Range(1, 1, Infinity, Infinity);
+
+    // レンジ内のデコレーションを取得
+    const decorations = model.getDecorationsInRange(allRange);
+
+    for (const decoration of decorations) {
+        if (decoration.options.className !== "START_" + functionInfo.functionId) {
             continue;
         }
-        return functionInfos[i];
+        const lineNumber = decoration.range.startLineNumber;
+        console.log(lineNumber);
+        // 特定の位置にスクロール
+        editor.revealLineNearTop(lineNumber, monaco.editor.ScrollType.Smooth);
+        return;
     }
-    throw "[ERROR_002] 関数が見つかりません";
+
 }
