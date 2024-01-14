@@ -4,11 +4,14 @@ import savePath from "./save_path";
 import { getLayerList, LayerInfo, getCode } from "./entry-server";
 
 export async function saveCode(layerId: string, functionInfos: Array<FunctionInfo>) {
-    console.log(functionInfos);
     const jsonPath = savePath + `${layerId}.json`;
     await fs.promises.writeFile(jsonPath, JSON.stringify(functionInfos));
     //
     const outDir = `C:\\Users\\kimura\\Documents\\ui_db\\src\\`;
+    //
+    await fs.promises.rm(outDir, { recursive: true });
+    await fs.promises.mkdir(outDir);
+    //
     const layerList: Array<LayerInfo> = await getLayerList();
     //
     // exportされている関数の一覧
@@ -40,13 +43,14 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
         // メインコード生成　ここから
         //
         let mainCode: string = "";
+        mainCode += `// ${layerInfo.layerNameJP}\n`;
+        mainCode += `//\n`;
         for (const filePath in imports) {
             const functionNames = imports[filePath];
             mainCode += `import {\n`;
             for (const functionNameEN of functionNames) {
                 // 文字列の先頭の文字を大文字にする
-                const capitalizedString = capitalizeFirstLetter(functionNameEN);
-                mainCode += `  varidate${capitalizedString} as ${functionNameEN},\n`;
+                mainCode += `  ${functionNameEN},\n`;
             }
             mainCode += `} from "${filePath}";\n`;
         }
@@ -63,7 +67,7 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
             //
             mainCode += beforeCode;
             mainCode += `// ${functionNameJP}\n`;
-            mainCode += `export async function ${functionNameEN}( ${parametersName.join(", ")} ){`;
+            mainCode += `export async function ${functionNameEN}_core( ${parametersName.join(", ")} ){`;
             mainCode += innerCode;
             mainCode += `}`;
             mainCode += afterCode;
@@ -80,9 +84,9 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
         let testCode: string = "";
         testCode += `import {\n`;
         for (const functionInfo of functionInfos) {
-            testCode += `  ${functionInfo.functionNameEN},  // ${functionInfo.functionNameJP}\n`;
+            testCode += `  ${functionInfo.functionNameEN}_core,  // ${functionInfo.functionNameJP}\n`;
         }
-        testCode += `} from "${mainFileName}";\n\n`;
+        testCode += `} from "${mainFileName}";\n\n\n`;
         //
         for (const functionInfo of functionInfos) {
             testCode += generateTestCode(layerInfo.layerNameEN, functionInfo);
@@ -135,12 +139,11 @@ function generateTestCode(layerNameEN: string, functionInfo: FunctionInfo): stri
         returnValue,
     } = functionInfo;
     //
-    // 文字列の先頭の文字を大文字にする
-    const capitalizedString = capitalizeFirstLetter(functionNameEN);
-    //
-    code += `// テスト用関数\n`;
-    code += `export async function varidate${capitalizedString}( ${parametersName.join(", ")} ){\n`;
-    code += `  //####################################################################################\n`;
+    code += `//#######################################################################################\n`;
+    code += `// 関数「${functionNameEN}_core」に、引数と戻り値のチェック機能を追加した関数\n`;
+    code += `//\n`;
+    code += `export async function ${functionNameEN}( ${parametersName.join(", ")} ){\n`;
+    code += `  //--------------------------------------------------------------------------\n`;
     code += `  // 引数を検証\n`;
     for (let i = 0; i < parametersName.length; i++) {
         code += varidateVariable(
@@ -154,11 +157,11 @@ function generateTestCode(layerNameEN: string, functionInfo: FunctionInfo): stri
         );
     }
     code += `  //\n`;
-    code += `  //####################################################################################\n`;
+    code += `  //--------------------------------------------------------------------------\n`;
     code += `  // メイン処理を実行\n`;
     code += `  let result;\n`;
     code += `  try{\n`;
-    code += `    result = await ${functionNameEN}( ${parametersName.join(", ")} );\n`;
+    code += `    result = await ${functionNameEN}_core( ${parametersName.join(", ")} );\n`;
     code += `  }\n`;
     code += `  catch(error){\n`;
     code += `    if( typeof error === "string" ){\n`;
@@ -169,7 +172,7 @@ function generateTestCode(layerNameEN: string, functionInfo: FunctionInfo): stri
     code += `    }\n`;
     code += `  }\n`;
     code += `  //\n`;
-    code += `  //####################################################################################\n`;
+    code += `  //--------------------------------------------------------------------------\n`;
     code += `  // 戻り値を検証\n`;
     code += varidateVariable(
         layerNameEN,
@@ -181,9 +184,9 @@ function generateTestCode(layerNameEN: string, functionInfo: FunctionInfo): stri
         "i",
     );
     code += `  //\n`;
-    code += `  //####################################################################################\n`;
+    code += `  //--------------------------------------------------------------------------\n`;
     code += `  return result;\n`;
-    code += `}\n\n`;
+    code += `}\n\n\n`;
     return code;
 }
 

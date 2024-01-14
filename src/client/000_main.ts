@@ -11,6 +11,8 @@ if (!Array.isArray(window.functionInfos)) {
     throw "window.functionInfosが配列ではありません。";
 }
 
+history.pushState('', '', './');
+
 if (window.functionId) {
     // パラメーター編集モード
     setupEditor1B(window.functionInfos, handleSave);

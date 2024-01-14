@@ -48,7 +48,6 @@ async function handleSave(onSave: Savefunc, editor: monaco.editor.IStandaloneCod
     if (!Array.isArray(buf)) {
         throw "バッファーがNULLです";
     }
-    console.log(buf);
     for (let i = 0; i < buf.length; i++) {
         if (buf[i].functionId === window.functionId) {
             const bufi = structuredClone(buf[i]);
@@ -59,7 +58,7 @@ async function handleSave(onSave: Savefunc, editor: monaco.editor.IStandaloneCod
             };
             await onSave(buf);
             if (bufi.functionNameJP !== obj.functionNameJP) {
-                location.reload();
+                //location.reload();
             }
             return;
         }
@@ -69,11 +68,11 @@ async function handleSave(onSave: Savefunc, editor: monaco.editor.IStandaloneCod
         ...obj,
         functionId: window.functionId,
         beforeCode: "\n",     // 関数の直前のコード
-        innerCode: "\n  console.log();\n",      // 関数の中身のコード
+        innerCode: `\n  throw "この関数は未実装です。";\n`,      // 関数の中身のコード
         afterCode: "\n",      // 関数の直後のコード
     });
     await onSave(buf);
-    location.reload();
+    //location.reload();
     return;
 }
 
@@ -89,7 +88,7 @@ function _getFunctionInfo(functionInfos: Array<FunctionInfo>): FunctionInfo {
         functionNameJP: "新しい関数",   // 関数名
         functionNameEN: "myFunc",   // 関数名
         beforeCode: "\n",     // 関数の直前のコード
-        innerCode: "\n  console.log();\n",      // 関数の中身のコード
+        innerCode: `\n  throw "この関数は未実装です。";\n`,      // 関数の中身のコード
         afterCode: "\n",      // 関数の直後のコード
         parametersName: [],
         parametersDataType: [],

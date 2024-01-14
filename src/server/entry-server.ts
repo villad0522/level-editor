@@ -18,7 +18,7 @@ export async function render(url: string, ssrManifest: string | undefined, query
     console.log("新しいレイヤーを作成します");
     const result = await _createLayer(layerList);
     layerInfo = result.layerInfo;
-    layerList.push(result.layerInfo);
+    layerList.unshift(result.layerInfo);
     functionInfos = result.functionInfos;
   }
   else if (!queryParameters["layer"]) {
@@ -30,7 +30,7 @@ export async function render(url: string, ssrManifest: string | undefined, query
       console.log("新しいレイヤーを作成します");
       const result = await _createLayer(layerList);
       layerInfo = result.layerInfo;
-      layerList.push(result.layerInfo);
+      layerList.unshift(result.layerInfo);
       functionInfos = result.functionInfos;
     }
   }
