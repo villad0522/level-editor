@@ -3,9 +3,18 @@ import path from "path";
 import savePath from "./save_path";
 import { getLayerList, LayerInfo, getCode } from "./entry-server";
 
+let pastTime = 0;
+
 export async function saveCode(layerId: string, functionInfos: Array<FunctionInfo>) {
     const jsonPath = savePath + `${layerId}.json`;
     await fs.promises.writeFile(jsonPath, JSON.stringify(functionInfos));
+    //
+    const nowTime = new Date().getTime();
+    if ((nowTime - pastTime) < 1000 * 60) {
+        return;
+    }
+    pastTime = nowTime;
+    console.log("コードを再生成します。");
     //
     const outDir = `C:\\Users\\kimura\\Documents\\ui_db\\src\\`;
     //
