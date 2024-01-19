@@ -18,8 +18,20 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
     //
     const outDir = `C:\\Users\\kimura\\Documents\\ui_db\\src\\`;
     //
-    await fs.promises.rm(outDir, { recursive: true });
-    await fs.promises.mkdir(outDir);
+    fs.readdir(outDir, (err, files) => {
+        if (err) {
+            console.error('ディレクトリを読み込めませんでした。', err);
+            return;
+        }
+
+        // ファイルのフィルタリングおよび削除処理
+        files.forEach(async (file) => {
+            if (/^\d{3}/.test(file)) {
+                const filePath = path.join(outDir, file);
+                await fs.promises.rm(filePath);
+            }
+        });
+    });
     //
     const layerList: Array<LayerInfo> = await getLayerList();
     //
@@ -98,7 +110,12 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
         testCode += `} from "${mainFileName}";\n\n\n`;
         //
         for (const functionInfo of functionInfos) {
-            testCode += generateTestCode(layerInfo.layerNameEN, functionInfo);
+            try {
+                testCode += generateTestCode(layerInfo.layerNameEN, functionInfo);
+            }
+            catch (err) {
+                throw `${err} layerNameJP = ${layerInfo.layerNameJP}`;
+            }
         }
         //
         // JavaScriptをファイルに保存する
@@ -299,7 +316,7 @@ function varidateVariable(
     else if (Array.isArray(dataType)) {
         // 配列の場合
         if (dataType.length === 0) {
-            console.error("型定義が不十分です");
+            console.error("型定義が不十分です layerNameEN:" + layerNameEN);
             return "";
         }
         code += indent + `if( !Array.isArray(${variableName}) ){\n`;
