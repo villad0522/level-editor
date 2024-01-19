@@ -26,7 +26,7 @@ export async function saveCode(layerId: string, testCode: string, functionInfos:
     await fs.promises.writeFile(jsonPath, JSON.stringify(functionInfos));
     //
     const nowTime = new Date().getTime();
-    if ((nowTime - pastTime) < 1000 * 60) {
+    if ((nowTime - pastTime) < 1000 * 30) {
         return;
     }
     pastTime = nowTime;
@@ -156,6 +156,8 @@ export function setBugMode( mode ){
         //####################################################################
         // テストコード生成　ここから
         let testCode: string = "";
+        testCode += `import fs from 'fs';\n`;
+        testCode += `import path from 'path';\n`;
         for (const filePath in imports) {
             const functionNames = imports[filePath];
             testCode += `import {\n`;
@@ -198,7 +200,7 @@ export function setBugMode( mode ){
     }
     // 意図的に埋め込んだ全てのバグを、正常に検出できた
     setBugMode(0);    // 意図的なバグの発生を止める
-    console.log(\`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでした。また、意図的に\${ i }件のバグを発生させたところ、全てのバグを検知できました。\\n\\n\`);
+    console.log(\`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでした。また、意図的に\${ i-1 }件のバグを発生させたところ、全てのバグを検知できました。\\n\\n\`);
     return;
 }\n\n\n// このレイヤーの動作テストを実行する関数
 async function _test(){
@@ -277,9 +279,12 @@ function zeroPadding(NUM: number, LEN: number): string {
 
 
 function insertMutation(text: string) {
-    const lines = text.split("\n");
+    let lines = text.split("\n");
+    lines = lines.filter(line => line.trim() ? true : false);
+    lines.unshift(`\n  if(bugMode === ${bugNumber}) throw "MUTATION${bugNumber}";  // 意図的にバグを混入させる（ミューテーション解析）`);
+    bugNumber++;
     // １行ずつ繰り返す
-    for (let i = 0; i < lines.length - 1; i++) {
+    for (let i = 1; i < lines.length - 1; i++) {
         if (lines[i + 1].includes("throw")) {
             continue;
         }
@@ -295,7 +300,7 @@ function insertMutation(text: string) {
             bugNumber++;
         }
     }
-    return lines.join("\n");
+    return lines.join("\n") + "\n";
 }
 
 // １行分のソースコードから、先頭のインデントだけを抽出するプログラム。
@@ -510,16 +515,14 @@ function varidateVariable(
     }
     else if (typeof dataType === "object" && (dataType["string"] || dataType["number"])) {
         // 反復可能オブジェクトの場合
-        code += indent + `if( typeof ${variableName} !== "object" ){\n`;
-        code += indent + `  if( !${variableName} ){\n`;
-        code += indent + `    throw new Error(\`${displayName}がNULLです。\\nレイヤー : ${layerNameEN}\\n関数 : ${functionNameEN}\`);\n`;
-        code += indent + `  }\n`;
-        code += indent + `  else{\n`;
-        code += indent + `    throw new Error(\`${displayName}がオブジェクトではありません。\\nレイヤー : ${layerNameEN}\\n関数 : ${functionNameEN}\`);\n`;
-        code += indent + `  }\n`;
+        code += indent + `if( ${variableName}===null || ${variableName}===undefined ){\n`;
+        code += indent + `  throw new Error(\`${displayName}がNULLです。\\nレイヤー : ${layerNameEN}\\n関数 : ${functionNameEN}\`);\n`;
         code += indent + `}\n`;
-        code += indent + `else if( typeof ${variableName}[Symbol.iterator] !== "function" ){\n`;
-        code += indent + `  throw new Error(\`${displayName}が反復可能オブジェクトではありません。\\nレイヤー : ${layerNameEN}\\n関数 : ${functionNameEN}\`);\n`;
+        code += indent + `else if( typeof ${variableName} !== "object" ){\n`;
+        code += indent + `  throw new Error(\`${displayName}がオブジェクトではありません。\\nレイヤー : ${layerNameEN}\\n関数 : ${functionNameEN}\`);\n`;
+        code += indent + `}\n`;
+        code += indent + `else if( ${variableName}.constructor !== Object ){\n`;
+        code += indent + `  throw new Error(\`${displayName}が辞書型ではありません。\\nレイヤー : ${layerNameEN}\\n関数 : ${functionNameEN}\`);\n`;
         code += indent + `}\n`;
         code += indent + `for( const ${indexName} in ${variableName} ){\n`;
         if (dataType["string"]) {

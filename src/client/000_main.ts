@@ -33,6 +33,9 @@ async function handleSave(functionInfos: Array<FunctionInfo>) {
             functionInfos2.push(functionInfo);
         }
     }
+    if (!testCode) {
+        testCode = window.testFunctionCode;
+    }
     if (!window.layerInfo?.layerId) {
         throw "window.layerInfo?.layerIdが空欄です。";
     }
