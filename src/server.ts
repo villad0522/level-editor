@@ -47,7 +47,7 @@ app.post("/code", async (req, res) => {
     } else {
         saveCode = (await import('../dist/server/save_code.ts' ?? "")).saveCode;
     }
-    await saveCode(req.body.layerId, req.body.functionInfos);
+    await saveCode(req.body.layerId, req.body.testCode, req.body.functionInfos);
     res.send("保存しました");
 });
 

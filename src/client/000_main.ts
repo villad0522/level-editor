@@ -23,12 +23,23 @@ else {
 }
 
 async function handleSave(functionInfos: Array<FunctionInfo>) {
+    const functionInfos2 = [];
+    let testCode: string = "";
+    for (const functionInfo of functionInfos) {
+        if (functionInfo.functionId === "test") {
+            testCode = functionInfo.innerCode;
+        }
+        else {
+            functionInfos2.push(functionInfo);
+        }
+    }
     if (!window.layerInfo?.layerId) {
         throw "window.layerInfo?.layerIdが空欄です。";
     }
     const bodyText = JSON.stringify({
         layerId: window.layerInfo.layerId,
-        functionInfos: functionInfos,
+        testCode: testCode,
+        functionInfos: functionInfos2,
     });
     const res = await window.fetch(
         "/code",
@@ -55,5 +66,6 @@ declare global {
         functionId: string,
         functionInfos: Array<FunctionInfo>
         Popper: any,
+        testFunctionCode: string,
     }
 }

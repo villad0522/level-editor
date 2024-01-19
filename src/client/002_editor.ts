@@ -49,8 +49,9 @@ export function setupEditor2(functionInfos: Array<FunctionInfo>, onSave: Savefun
             className: "START_" + functionId,
         });
         //
+        console.log(innerCode);
         sections.push({
-            code: (beforeCode.length >= 1) ? innerCode : "\n", // 編集可能領域が空文字だとバグるため、\nを入れる
+            code: (innerCode.length >= 1) ? innerCode : "\n", // 編集可能領域が空文字だとバグるため、\nを入れる
             className: null,
         });
         //
@@ -64,7 +65,7 @@ export function setupEditor2(functionInfos: Array<FunctionInfo>, onSave: Savefun
             className: null,
         });
     }
-
+    console.log(sections);
     return setupEditor3(sections, (sections) => handleSave(sections, functionInfos, onSave));
 }
 

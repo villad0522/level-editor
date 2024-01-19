@@ -5,7 +5,23 @@ import { getLayerList, LayerInfo, getCode } from "./entry-server";
 
 let pastTime = 0;
 
-export async function saveCode(layerId: string, functionInfos: Array<FunctionInfo>) {
+
+let bugNumber = 1;
+
+export async function saveCode(layerId: string, testCode: string, functionInfos: Array<FunctionInfo>) {
+    const testFuncInfo = {
+        functionId: "test",     // 関数のID
+        functionNameJP: "テストコード",   // 関数名
+        functionNameEN: "test",   // 関数名
+        beforeCode: "",     // 関数の直前のコード
+        innerCode: testCode,      // 関数の中身のコード
+        afterCode: "",      // 関数の直後のコード
+        parametersName: [],  // 引数の名前
+        parametersDataType: [],    // 引数の型
+        returnValue: "void",       // 戻り値
+    };
+    functionInfos.unshift(testFuncInfo);
+    //
     const jsonPath = savePath + `${layerId}.json`;
     await fs.promises.writeFile(jsonPath, JSON.stringify(functionInfos));
     //
@@ -41,8 +57,10 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
     };
     //
     for (let i = layerList.length - 1; i >= 0; i--) {
+        const mainCodeLayer = i * 2 + 1;
+        const testLayer = i * 2;
         const layerInfo = layerList[i];
-        const functionInfos = await getCode(layerInfo["layerId"]);
+        const { functionInfos, testFunctionCode } = await getCode(layerInfo["layerId"]);
         //
         const imports: { [filePath: string]: Array<string> } = {
             // "./ファイル名.js": [
@@ -75,7 +93,17 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
             }
             mainCode += `} from "${filePath}";\n`;
         }
+        mainCode += `\n\n//【グローバル変数】意図的にバグを混入させるか？（ミューテーション解析）
+let bugMode = 0;
+//           0 : バグを混入させない（通常動作）
+//     1,2,3.. : 意図的にバグを混入させる
+
+
+export function setBugMode( mode ){
+    bugMode = mode;
+}\n\n`;
         //
+        bugNumber = 1;
         for (const functionInfo of functionInfos) {
             const {
                 functionNameJP,   // 関数名
@@ -89,13 +117,13 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
             mainCode += beforeCode;
             mainCode += `// ${functionNameJP}\n`;
             mainCode += `export async function ${functionNameEN}_core( ${parametersName.join(", ")} ){`;
-            mainCode += innerCode;
+            mainCode += insertMutation(innerCode);
             mainCode += `}`;
             mainCode += afterCode;
         }
         //
         // JavaScriptをファイルに保存する
-        const mainFileName = `./${zeroPadding(i * 2 + 1, 3)}_${layerInfo.layerNameEN}.js`;
+        const mainFileName = `./${zeroPadding(mainCodeLayer, 3)}_${layerInfo.layerNameEN}.js`;
         const mainPath = path.join(outDir, mainFileName);
         await fs.promises.writeFile(mainPath, mainCode);
         //
@@ -103,12 +131,41 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
         //####################################################################
         // テストコード生成　ここから
         let testCode: string = "";
-        testCode += `import {\n`;
+        testCode += `import {\n  setBugMode,\n`;
         for (const functionInfo of functionInfos) {
             testCode += `  ${functionInfo.functionNameEN}_core,  // ${functionInfo.functionNameJP}\n`;
         }
-        testCode += `} from "${mainFileName}";\n\n\n`;
-        //
+        testCode += `} from "${mainFileName}";\n\n\n\n//#######################################################################################
+// テストを実行する関数
+
+async function _test(){
+    ${testFunctionCode ?? ""}
+}
+
+export async function test${zeroPadding(testLayer, 3)}() {
+    setBugMode(0);    // バグを混入させない（通常動作）
+    await _test();  // テストを実行（意図的にバグを混入させない）
+    let i;
+    for ( i = 1; i <= ${bugNumber - 1}; i++ ) {
+        setBugMode(i);      // 意図的にバグを混入させる
+        try {
+            await _test();  // 意図的にバグを混入させてテストを実行
+        }
+        catch (err) {
+            continue;   // 意図的に埋め込んだバグを正常に検出できた場合
+        }
+        // 意図的に埋め込んだバグを検出できなかった場合
+        setBugMode(0);    // 意図的なバグの発生を止める
+        return {
+            userMessage: \`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでしたが、テストコードが不十分です。意図的に発生させたバグ(bugMode: \${ i })を検出できませんでした。\`,
+        };
+    }
+    // 意図的に埋め込んだ全てのバグを、正常に検出できた
+    setBugMode(0);    // 意図的なバグの発生を止める
+    return {
+        userMessage: \`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでした。また、意図的に\${ i }件のバグを発生させたところ、全てのバグを検知できました。\`,
+    };
+}\n\n\n\n`;
         for (const functionInfo of functionInfos) {
             try {
                 testCode += generateTestCode(layerInfo.layerNameEN, functionInfo);
@@ -119,7 +176,7 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
         }
         //
         // JavaScriptをファイルに保存する
-        const testFilePath = `./${zeroPadding(i * 2, 3)}_${layerInfo.layerNameEN}_test.js`;
+        const testFilePath = `./${zeroPadding(testLayer, 3)}_${layerInfo.layerNameEN}_test.js`;
         const testPath = path.join(outDir, testFilePath);
         await fs.promises.writeFile(testPath, testCode);
         //
@@ -130,6 +187,7 @@ export async function saveCode(layerId: string, functionInfos: Array<FunctionInf
         for (const functionInfo of functionInfos) {
             functionPaths[functionInfo.functionNameEN] = testFilePath;
         }
+        functionPaths["test" + zeroPadding(testLayer, 3)] = testFilePath;
     }
 }
 
@@ -143,6 +201,42 @@ function zeroPadding(NUM: number, LEN: number): string {
     return (Array(LEN).join('0') + NUM).slice(-LEN);
 }
 
+
+function insertMutation(text: string) {
+    const lines = text.split("\n");
+    // １行ずつ繰り返す
+    for (let i = 0; i < lines.length - 1; i++) {
+        if (lines[i + 1].includes("throw")) {
+            continue;
+        }
+        if (
+            (lines[i].search(/\s+if\s*\(/) !== -1 && lines[i].includes("{"))
+            || (lines[i].search(/\s+else\s*\{/) !== -1)
+            || (lines[i].search(/\s+case\s*\:/) !== -1)
+            || (lines[i].search(/\s+for\s*\(/) !== -1)
+            || (lines[i].search(/\s+while\s*\(/) !== -1 && lines[i].includes("{"))
+        ) {
+            lines[i] += "\n" + trimIndent(lines[i + 1]);
+            lines[i] += `if(bugMode === ${bugNumber}) throw "MUTATION${bugNumber}";  // 意図的にバグを混入させる（ミューテーション解析）`;
+            bugNumber++;
+        }
+    }
+    return lines.join("\n");
+}
+
+// １行分のソースコードから、先頭のインデントだけを抽出するプログラム。
+function trimIndent(line: string) {
+    // 正規表現を使用して先頭の空白文字を検索
+    const match = line.match(/^\s+/);
+    // 先頭の空白文字が存在する場合、それを切り取る
+    if (match) {
+        const leadingWhitespace = match[0];
+        const indent = line.slice(0, leadingWhitespace.length);
+        return indent;
+    }
+    // 先頭に空白文字がない場合
+    return "";
+}
 
 interface FunctionInfo {
     functionId: string,     // 関数のID

@@ -10,7 +10,18 @@ export type FunctionInfo = F;
 export type Savefunc = (functionInfos: Array<FunctionInfo>) => void;
 
 export function setupEditor1(functionInfos: Array<FunctionInfo>, onSave: Savefunc) {
-    const editor = setupEditor2(functionInfos, onSave);
+    const testFuncInfo = {
+        functionId: "test",     // 関数のID
+        functionNameJP: "テストコード",   // 関数名
+        functionNameEN: "test",   // 関数名
+        beforeCode: "",     // 関数の直前のコード
+        innerCode: window.testFunctionCode,      // 関数の中身のコード
+        afterCode: "",      // 関数の直後のコード
+        parametersName: [],  // 引数の名前
+        parametersDataType: [],    // 引数の型
+        returnValue: "void",       // 戻り値
+    };
+    const editor = setupEditor2(structuredClone([testFuncInfo, ...functionInfos]), onSave);
     //
     for (const functionInfo of functionInfos) {
         setupSideMenu(functionInfo, editor);

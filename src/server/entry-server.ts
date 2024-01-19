@@ -14,6 +14,7 @@ export async function render(url: string, ssrManifest: string | undefined, query
   //
   let layerInfo: LayerInfo | null = null;
   let functionInfos: Array<FunctionInfo> = [];
+  let testFunctionCode: string = "";
   if (queryParameters["layer"] === "new") {
     console.log("新しいレイヤーを作成します");
     const result = await _createLayer(layerList);
@@ -24,7 +25,9 @@ export async function render(url: string, ssrManifest: string | undefined, query
   else if (!queryParameters["layer"]) {
     if (layerList.length >= 1) {
       layerInfo = layerList[0];
-      functionInfos = await getCode(layerList[0]["layerId"]);
+      const result = await getCode(layerList[0]["layerId"]);
+      functionInfos = result.functionInfos;
+      testFunctionCode = result.testFunctionCode;
     }
     else {
       console.log("新しいレイヤーを作成します");
@@ -44,7 +47,9 @@ export async function render(url: string, ssrManifest: string | undefined, query
     if (!layerInfo) {
       throw new Error(`レイヤーが存在しません。${queryParameters["layer"]}`);
     }
-    functionInfos = await getCode(queryParameters["layer"]);
+    const result = await getCode(queryParameters["layer"]);
+    functionInfos = result.functionInfos;
+    testFunctionCode = result.testFunctionCode;
   }
   //
   if (!Array.isArray(functionInfos)) {
@@ -82,6 +87,7 @@ export async function render(url: string, ssrManifest: string | undefined, query
   return {
     head: `
       <script>
+        window.testFunctionCode = ${JSON.stringify(testFunctionCode)};
         window.layerInfo = ${JSON.stringify(layerInfo, null, 2)};
         window.functionId = "${queryParameters["func"] ?? ""}";
         window.functionInfos = ${JSON.stringify(functionInfos2, null, 2)};
@@ -174,18 +180,39 @@ export async function getLayerList(): Promise<Array<LayerInfo>> {
 
 //##########################################################################
 
-export async function getCode(layerId: string): Promise<Array<FunctionInfo>> {
+interface returnA {
+  functionInfos: Array<FunctionInfo>,
+  testFunctionCode: string,
+}
+
+export async function getCode(layerId: string): Promise<returnA> {
   const path = savePath + `${layerId}.json`;
   if (!fs.existsSync(path)) {
     throw new Error(`ファイルが存在しません。${path}`);
   }
   const buffer = await fs.promises.readFile(path);
+  let functionInfos1: Array<FunctionInfo> = [];
   try {
-    return JSON.parse(buffer.toString());
+    functionInfos1 = JSON.parse(buffer.toString());
   }
   catch (err) {
     throw new Error(`ファイルの内容をJSON形式に変換できませんでした。${path}`);
   }
+  const functionInfos2: Array<FunctionInfo> = [];
+  let testFunctionCode: string = "";
+  //
+  for (const functionInfo1 of functionInfos1) {
+    if (functionInfo1.functionId === "test") {
+      testFunctionCode = functionInfo1.innerCode;
+    }
+    else {
+      functionInfos2.push(functionInfo1);
+    }
+  }
+  return {
+    functionInfos: functionInfos2,
+    testFunctionCode: testFunctionCode,
+  };
 }
 
 //##########################################################################
