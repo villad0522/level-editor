@@ -56,10 +56,12 @@ export async function saveCode(layerId: string, testCode: string, functionInfos:
         // "関数名": "./ファイル名.js",
     };
     //
+    const testFileMap: { [filePath: string]: string } = {};
+    //
     for (let i = layerList.length - 1; i >= 0; i--) {
-        const mainLayer = i * 3 + 3;
-        const validateLayer = i * 3 + 2;
-        const testLayer = i * 3 + 1;
+        const mainLayer = i * 3 + 4;
+        const validateLayer = i * 3 + 3;
+        const testLayer = i * 3 + 2;
         const layerInfo = layerList[i];
         const { functionInfos, testFunctionCode } = await getCode(layerInfo["layerId"]);
         //
@@ -158,8 +160,16 @@ export function setBugMode( mode ){
             const functionNames = imports[filePath];
             testCode += `import {\n`;
             for (const functionNameEN of functionNames) {
-                // 文字列の先頭の文字を大文字にする
-                testCode += `  ${functionNameEN},\n`;
+                let flag = true;
+                for (const functionInfo of functionInfos) {
+                    if (functionNameEN === functionInfo.functionNameEN) {
+                        flag = false;
+                        break;
+                    }
+                }
+                if (flag) {
+                    testCode += `  ${functionNameEN},\n`;
+                }
             }
             testCode += `} from "${filePath}";\n`;
         }
@@ -183,17 +193,14 @@ export function setBugMode( mode ){
         }
         // 意図的に埋め込んだバグを検出できなかった場合
         setBugMode(0);    // 意図的なバグの発生を止める
-        console.log(\`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでしたが、テストコードが不十分です。意図的に発生させたバグ(bugMode: \${ i })を検出できませんでした。\`);
+        console.log(\`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでしたが、テストコードが不十分です。意図的に発生させたバグ(bugMode: \${ i })を検出できませんでした。\\n\\n\`);
         return;
     }
     // 意図的に埋め込んだ全てのバグを、正常に検出できた
     setBugMode(0);    // 意図的なバグの発生を止める
-    console.log(\`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでした。また、意図的に\${ i }件のバグを発生させたところ、全てのバグを検知できました。\`);
+    console.log(\`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでした。また、意図的に\${ i }件のバグを発生させたところ、全てのバグを検知できました。\\n\\n\`);
     return;
-}
-
-
-// このレイヤーの動作テストを実行する関数
+}\n\n\n// このレイヤーの動作テストを実行する関数
 async function _test(){
     ${testFunctionCode ?? ""}
 }`;
@@ -211,12 +218,56 @@ async function _test(){
         }
         //
         //####################################################################
+        testFileMap["test" + zeroPadding(testLayer, 3)] = testFilePath;
     }
+    //####################################################################
+    // テストコードをまとめるファイルを生成する
+    let testTopCode = "\n";
+    for (const functionName in testFileMap) {
+        const filePath = testFileMap[functionName];
+        testTopCode += `import { ${functionName} } from "${filePath}";\n`;
+    }
+    testTopCode += `\n\nasync function test() {
+  try {
+    if( process.argv.length < 3 ){
+      // testNumberが指定されていない場合
+      console.log("全てのレイヤーの動作テストを行います。");`;
+    for (const functionName in testFileMap) {
+        testTopCode += `
+      await ${functionName}();`;
+    }
+    testTopCode += `
+      console.log("\\n\\nテストが終了しました\\n");
+      return;
+    }
+    // testNumberが指定されている場合
+    const testNumber = Number(process.argv[2]);
+    console.log(\`テストコード\${ testNumber }を実行します。\`);
+    switch( testNumber ){`;
+    for (const functionName in testFileMap) {
+        const testNumber = Number(functionName.slice(-3));
+        testTopCode += `
+      case ${testNumber}:
+        await ${functionName}();
+        break;`;
+    }
+    testTopCode += `
+      default:
+        console.error(\`指定されたテストコード「\${ testNumber }」は存在しません。\`);
+    }
+    console.log("\\n\\nテストが終了しました\\n");
+  }
+  catch (err) {
+    console.error(err);
+  }
 }
 
-// 文字列の先頭の文字を大文字にする関数
-function capitalizeFirstLetter(str: string): string {
-    return str.charAt(0).toUpperCase() + str.slice(1);
+
+test();`;
+    // JavaScriptをファイルに保存する
+    const testTopPath = path.join(outDir, "001_test.js");
+    await fs.promises.writeFile(testTopPath, testTopCode);
+    //####################################################################
 }
 
 // NUM=値 LEN=桁数
@@ -235,7 +286,7 @@ function insertMutation(text: string) {
         if (
             (lines[i].search(/\s+if\s*\(/) !== -1 && lines[i].includes("{"))
             || (lines[i].search(/\s+else\s*\{/) !== -1)
-            || (lines[i].search(/\s+case\s*\:/) !== -1)
+            || (lines[i].search(/\s+case/) !== -1)
             || (lines[i].search(/\s+for\s*\(/) !== -1)
             || (lines[i].search(/\s+while\s*\(/) !== -1 && lines[i].includes("{"))
         ) {
