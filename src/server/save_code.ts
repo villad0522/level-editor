@@ -57,8 +57,9 @@ export async function saveCode(layerId: string, testCode: string, functionInfos:
     };
     //
     for (let i = layerList.length - 1; i >= 0; i--) {
-        const mainCodeLayer = i * 2 + 1;
-        const testLayer = i * 2;
+        const mainLayer = i * 3 + 3;
+        const validateLayer = i * 3 + 2;
+        const testLayer = i * 3 + 1;
         const layerInfo = layerList[i];
         const { functionInfos, testFunctionCode } = await getCode(layerInfo["layerId"]);
         //
@@ -78,9 +79,9 @@ export async function saveCode(layerId: string, testCode: string, functionInfos:
             imports[functionPath].push(functionNameEN);
         }
         //
+        //
         //####################################################################
         // メインコード生成　ここから
-        //
         let mainCode: string = "";
         mainCode += `// ${layerInfo.layerNameJP}\n`;
         mainCode += `//\n`;
@@ -123,26 +124,52 @@ export function setBugMode( mode ){
         }
         //
         // JavaScriptをファイルに保存する
-        const mainFileName = `./${zeroPadding(mainCodeLayer, 3)}_${layerInfo.layerNameEN}.js`;
+        const mainFileName = `./${zeroPadding(mainLayer, 3)}_${layerInfo.layerNameEN}.js`;
         const mainPath = path.join(outDir, mainFileName);
         await fs.promises.writeFile(mainPath, mainCode);
         //
         //
         //####################################################################
+        // バリデーションコード生成　ここから
+        let validate: string = "";
+        validate += `import {\n`;
+        for (const functionInfo of functionInfos) {
+            validate += `  ${functionInfo.functionNameEN}_core,  // ${functionInfo.functionNameJP}\n`;
+        }
+        validate += `} from "${mainFileName}";\n\n\n`;
+        for (const functionInfo of functionInfos) {
+            try {
+                validate += generateValidateCode(layerInfo.layerNameEN, functionInfo);
+            }
+            catch (err) {
+                throw `${err} layerNameJP = ${layerInfo.layerNameJP}`;
+            }
+        }
+        //
+        // JavaScriptをファイルに保存する
+        const validateFilePath = `./${zeroPadding(validateLayer, 3)}_${layerInfo.layerNameEN}_validate.js`;
+        const validatePath = path.join(outDir, validateFilePath);
+        await fs.promises.writeFile(validatePath, validate);
+        //
+        //####################################################################
         // テストコード生成　ここから
         let testCode: string = "";
-        testCode += `import {\n  setBugMode,\n`;
-        for (const functionInfo of functionInfos) {
-            testCode += `  ${functionInfo.functionNameEN}_core,  // ${functionInfo.functionNameJP}\n`;
+        for (const filePath in imports) {
+            const functionNames = imports[filePath];
+            testCode += `import {\n`;
+            for (const functionNameEN of functionNames) {
+                // 文字列の先頭の文字を大文字にする
+                testCode += `  ${functionNameEN},\n`;
+            }
+            testCode += `} from "${filePath}";\n`;
         }
-        testCode += `} from "${mainFileName}";\n\n\n\n//#######################################################################################
-// テストを実行する関数
-
-async function _test(){
-    ${testFunctionCode ?? ""}
-}
-
-export async function test${zeroPadding(testLayer, 3)}() {
+        testCode += `import {\n`;
+        for (const functionInfo of functionInfos) {
+            testCode += `  ${functionInfo.functionNameEN},  // ${functionInfo.functionNameJP}\n`;
+        }
+        testCode += `} from "${validateFilePath}";\n`;
+        testCode += `import { setBugMode } from "${mainFileName}";\n`;
+        testCode += `\n\nexport async function test${zeroPadding(testLayer, 3)}() {
     setBugMode(0);    // バグを混入させない（通常動作）
     await _test();  // テストを実行（意図的にバグを混入させない）
     let i;
@@ -156,24 +183,20 @@ export async function test${zeroPadding(testLayer, 3)}() {
         }
         // 意図的に埋め込んだバグを検出できなかった場合
         setBugMode(0);    // 意図的なバグの発生を止める
-        return {
-            userMessage: \`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでしたが、テストコードが不十分です。意図的に発生させたバグ(bugMode: \${ i })を検出できませんでした。\`,
-        };
+        console.log(\`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでしたが、テストコードが不十分です。意図的に発生させたバグ(bugMode: \${ i })を検出できませんでした。\`);
+        return;
     }
     // 意図的に埋め込んだ全てのバグを、正常に検出できた
     setBugMode(0);    // 意図的なバグの発生を止める
-    return {
-        userMessage: \`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでした。また、意図的に\${ i }件のバグを発生させたところ、全てのバグを検知できました。\`,
-    };
-}\n\n\n\n`;
-        for (const functionInfo of functionInfos) {
-            try {
-                testCode += generateTestCode(layerInfo.layerNameEN, functionInfo);
-            }
-            catch (err) {
-                throw `${err} layerNameJP = ${layerInfo.layerNameJP}`;
-            }
-        }
+    console.log(\`レイヤー「${layerInfo.layerNameEN}」からバグは見つかりませんでした。また、意図的に\${ i }件のバグを発生させたところ、全てのバグを検知できました。\`);
+    return;
+}
+
+
+// このレイヤーの動作テストを実行する関数
+async function _test(){
+    ${testFunctionCode ?? ""}
+}`;
         //
         // JavaScriptをファイルに保存する
         const testFilePath = `./${zeroPadding(testLayer, 3)}_${layerInfo.layerNameEN}_test.js`;
@@ -182,12 +205,12 @@ export async function test${zeroPadding(testLayer, 3)}() {
         //
         //
         //####################################################################
-        //
         // 次のループのために、自分の関数をexportする
         for (const functionInfo of functionInfos) {
-            functionPaths[functionInfo.functionNameEN] = testFilePath;
+            functionPaths[functionInfo.functionNameEN] = validateFilePath;
         }
-        functionPaths["test" + zeroPadding(testLayer, 3)] = testFilePath;
+        //
+        //####################################################################
     }
 }
 
@@ -250,7 +273,7 @@ interface FunctionInfo {
     returnValue: any,       // 戻り値
 };
 
-function generateTestCode(layerNameEN: string, functionInfo: FunctionInfo): string {
+function generateValidateCode(layerNameEN: string, functionInfo: FunctionInfo): string {
     let code = "";
     const {
         functionNameEN,   // 関数名
