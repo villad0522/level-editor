@@ -17,10 +17,20 @@ if (scrollXText) {
         topBarElement.scrollLeft = scrollX;
     }
 }
-window.setInterval(() => {
-    const scrollXText = String(topBarElement.scrollLeft);
-    sessionStorage.setItem("scrollX", scrollXText);
-}, 3000);
+let pastScrollTime = 0;
+let eventId: number | null = null;
+topBarElement.addEventListener("scroll", () => {
+    const nowTime = new Date().getTime();
+    if (nowTime - pastScrollTime < 200) return;
+    if (eventId) {
+        window.clearTimeout(eventId);
+        eventId = null;
+    }
+    eventId = window.setTimeout(() => {
+        const scrollXText = String(topBarElement.scrollLeft);
+        sessionStorage.setItem("scrollX", scrollXText);
+    }, 300);
+});
 
 //#####################################################################
 
