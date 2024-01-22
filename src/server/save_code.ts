@@ -59,9 +59,9 @@ export async function saveCode(layerId: string, testCode: string, functionInfos:
     const testFileMap: { [filePath: string]: string } = {};
     //
     for (let i = layerList.length - 1; i >= 0; i--) {
-        const mainLayer = i * 3 + 4;
-        const validateLayer = i * 3 + 3;
-        const testLayer = i * 3 + 2;
+        const mainLayer = i * 3 + 5;
+        const validateLayer = i * 3 + 4;
+        const testLayer = i * 3 + 3;
         const layerInfo = layerList[i];
         const { functionInfos, testFunctionCode } = await getCode(layerInfo["layerId"]);
         //
@@ -270,6 +270,41 @@ test();`;
     const testTopPath = path.join(outDir, "001_test.js");
     await fs.promises.writeFile(testTopPath, testTopCode);
     //####################################################################
+    // まとめるファイルを生成する
+    let indexCode = "\n";
+    const imports: { [filePath: string]: Array<string> } = {
+        // "./ファイル名.js": [
+        //     "関数名",
+        //     "関数名",
+        // ],
+    };
+    //
+    // 依存関係を調べる
+    for (const functionNameEN in functionPaths) {
+        const functionPath = functionPaths[functionNameEN];
+        if (!imports[functionPath]) {
+            imports[functionPath] = [];
+        }
+        imports[functionPath].push(functionNameEN);
+    }
+    for (const filePath in imports) {
+        const functionNames = imports[filePath];
+        indexCode += `import {\n`;
+        for (const functionNameEN of functionNames) {
+            // 文字列の先頭の文字を大文字にする
+            indexCode += `  ${functionNameEN},\n`;
+        }
+        indexCode += `} from "${filePath}";\n`;
+    }
+    indexCode += `\nexport {\n`;
+    for (const functionNameEN in functionPaths) {
+        indexCode += `  ${functionNameEN},\n`;
+    }
+    indexCode += `};`;
+    // JavaScriptをファイルに保存する
+    const indexPath = path.join(outDir, "002_index.js");
+    await fs.promises.writeFile(indexPath, indexCode);
+    //####################################################################
 }
 
 // NUM=値 LEN=桁数
@@ -399,7 +434,34 @@ function varidateVariable(
     indexName: string,
 ): string {
     let code = "";
-    if (String(dataType).startsWith("string")) {
+    if (Array.isArray(dataType)) {
+        // 配列の場合
+        if (dataType.length === 0) {
+            console.error("型定義が不十分です layerNameEN:" + layerNameEN);
+            return "";
+        }
+        code += indent + `if( !Array.isArray(${variableName}) ){\n`;
+        code += indent + `  if( !${variableName} ){\n`;
+        code += indent + `    throw new Error(\`${displayName}がNULLです。\\nレイヤー : ${layerNameEN}\\n関数 : ${functionNameEN}\`);\n`;
+        code += indent + `  }\n`;
+        code += indent + `  else{\n`;
+        code += indent + `    throw new Error(\`${displayName}が配列ではありません。\\nレイヤー : ${layerNameEN}\\n関数 : ${functionNameEN}\`);\n`;
+        code += indent + `  }\n`;
+        code += indent + `}\n`;
+        code += indent + `for( let ${indexName}=0; i<${variableName}.length; i++ ){\n`;
+        code += varidateVariable(
+            layerNameEN,
+            functionNameEN,
+            `${variableName}[${indexName}]`,
+            `${displayName}[\${${indexName}}]`,
+            dataType[0],
+            indent + "  ",
+            String.fromCharCode(indexName.charCodeAt(0) + 1),
+        );
+        code += indent + `}\n`;
+        return code;
+    }
+    else if (String(dataType).startsWith("string")) {
         // 文字列の場合
         if (String(dataType).endsWith("_nullable")) {
             // 空欄OK
@@ -485,33 +547,6 @@ function varidateVariable(
             code += indent + `}\n`;
             return code;
         }
-    }
-    else if (Array.isArray(dataType)) {
-        // 配列の場合
-        if (dataType.length === 0) {
-            console.error("型定義が不十分です layerNameEN:" + layerNameEN);
-            return "";
-        }
-        code += indent + `if( !Array.isArray(${variableName}) ){\n`;
-        code += indent + `  if( !${variableName} ){\n`;
-        code += indent + `    throw new Error(\`${displayName}がNULLです。\\nレイヤー : ${layerNameEN}\\n関数 : ${functionNameEN}\`);\n`;
-        code += indent + `  }\n`;
-        code += indent + `  else{\n`;
-        code += indent + `    throw new Error(\`${displayName}が配列ではありません。\\nレイヤー : ${layerNameEN}\\n関数 : ${functionNameEN}\`);\n`;
-        code += indent + `  }\n`;
-        code += indent + `}\n`;
-        code += indent + `for( let ${indexName}=0; i<${variableName}.length; i++ ){\n`;
-        code += varidateVariable(
-            layerNameEN,
-            functionNameEN,
-            `${variableName}[${indexName}]`,
-            `${displayName}[\${${indexName}}]`,
-            dataType[0],
-            indent + "  ",
-            String.fromCharCode(indexName.charCodeAt(0) + 1),
-        );
-        code += indent + `}\n`;
-        return code;
     }
     else if (typeof dataType === "object" && (dataType["string"] || dataType["number"])) {
         // 反復可能オブジェクトの場合

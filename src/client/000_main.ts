@@ -3,6 +3,28 @@ import './style.scss';
 import { setupEditor1, FunctionInfo } from "./001_editor.ts";
 import { setupEditor1B } from "./001B_editor.ts";
 
+//#####################################################################
+// ページを遷移した後も、スクロール位置を保持する
+const topBarElement = document.querySelector("header");
+if (!topBarElement) {
+    throw "headerが見つかりません";
+}
+const scrollXText = sessionStorage.getItem("scrollX");
+if (scrollXText) {
+    const scrollX = Number(scrollXText);
+    if (!isNaN(scrollX)) {
+        console.log(scrollX);
+        topBarElement.scrollLeft = scrollX;
+    }
+}
+window.setInterval(() => {
+    const scrollXText = String(topBarElement.scrollLeft);
+    sessionStorage.setItem("scrollX", scrollXText);
+}, 3000);
+
+//#####################################################################
+
+
 if (!window.layerInfo?.layerId) {
     throw "window.layerInfo?.layerIdが空欄です。";
 }
