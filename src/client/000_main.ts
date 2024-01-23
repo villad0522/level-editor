@@ -77,7 +77,7 @@ async function handleSave(functionInfos: Array<FunctionInfo>) {
         functionInfos: functionInfos2,
     });
     const res = await window.fetch(
-        "/code",
+        "/save",
         {
             method: "POST",
             headers: {
@@ -103,4 +103,18 @@ declare global {
         Popper: any,
         testFunctionCode: string,
     }
+}
+
+
+const buildButtonElement = document.getElementById("build_button");
+buildButtonElement?.addEventListener("click", handleBuild);
+
+async function handleBuild() {
+    const res = await window.fetch(
+        "/build",
+        {
+            method: "POST",
+        }
+    );
+    console.log(await res.text());
 }

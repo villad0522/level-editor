@@ -39,7 +39,7 @@ if (!isProduction) {
     app.use(base, sirv('../dist/client', { extensions: [] }))
 }
 
-app.post("/code", async (req, res) => {
+app.post("/save", async (req, res) => {
     if (!vite) return;
     let saveCode;
     if (!isProduction) {
@@ -49,6 +49,18 @@ app.post("/code", async (req, res) => {
     }
     await saveCode(req.body.layerId, req.body.testCode, req.body.functionInfos);
     res.send("保存しました");
+});
+
+app.post("/build", async (req, res) => {
+    if (!vite) return;
+    let buildCode;
+    if (!isProduction) {
+        buildCode = (await vite.ssrLoadModule('/server/build_code.ts')).buildCode;
+    } else {
+        buildCode = (await import('../dist/server/build_code.ts' ?? "")).buildCode;
+    }
+    await buildCode();
+    res.send("ビルドしました");
 });
 
 

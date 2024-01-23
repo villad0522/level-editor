@@ -106,6 +106,11 @@ export async function render(url: string, ssrManifest: string | undefined, query
       </header>
       <div class="tab_body">
         <div class="sidebar">
+          <button class="btn btn-primary" id="build_button">
+            コードを再生成
+          </button>
+          <br>
+          <br>
           <div id="side_button_group" class="btn-group-vertical" role="group" aria-label="Vertical button group">
           </div>
           <br>
