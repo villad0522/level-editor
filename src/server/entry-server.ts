@@ -87,10 +87,10 @@ export async function render(url: string, ssrManifest: string | undefined, query
   return {
     head: `
       <script>
-        window.testFunctionCode = ${JSON.stringify(testFunctionCode)};
-        window.layerInfo = ${JSON.stringify(layerInfo, null, 2)};
+        window.testFunctionCode = ${JSON.stringify(testFunctionCode.replaceAll("</script>", "<\\/script>"))};
+        window.layerInfo = ${JSON.stringify(layerInfo, null, 2).replaceAll("</script>", "<\\/script>")};
         window.functionId = "${queryParameters["func"] ?? ""}";
-        window.functionInfos = ${JSON.stringify(functionInfos2, null, 2)};
+        window.functionInfos = ${JSON.stringify(functionInfos2, null, 2).replaceAll("</script>", "<\\/script>")};
       </script>
     `,
     body: `
@@ -124,6 +124,20 @@ export async function render(url: string, ssrManifest: string | undefined, query
       </div>
     `,
   }
+}
+
+
+function escape_html(text: string) {
+  return text.replace(/[&'`"<>]/g, function (match: string): string {
+    return {
+      '&': '&amp;',
+      "'": '&#x27;',
+      '`': '&#x60;',
+      '"': '&quot;',
+      '<': '&lt;',
+      '>': '&gt;',
+    }[match] ?? match;
+  });
 }
 
 //##########################################################################
