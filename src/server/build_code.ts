@@ -159,6 +159,7 @@ export function setBugMode( mode ){
         testCode += `\n\nexport async function test${zeroPadding(testLayer, 3)}() {
     setBugMode(0);    // バグを混入させない（通常動作）
     await _test();  // テストを実行（意図的にバグを混入させない）
+    await close();
     let i;
     for ( i = 1; i <= ${bugNumber - 1}; i++ ) {
         setBugMode(i);      // 意図的にバグを混入させる
@@ -166,7 +167,16 @@ export function setBugMode( mode ){
             await _test();  // 意図的にバグを混入させてテストを実行
         }
         catch (err) {
-            continue;   // 意図的に埋め込んだバグを正常に検出できた場合
+            // 意図的に埋め込んだバグを正常に検出できた場合。
+            while(true){
+                try{
+                    // 次のテストに影響を与えないように、データベースを閉じる。
+                    await close();
+                }
+                catch(err) {}
+                break;
+            }
+            continue;
         }
         // 意図的に埋め込んだバグを検出できなかった場合
         setBugMode(0);    // 意図的なバグの発生を止める
@@ -412,7 +422,7 @@ function varidateVariable(
         code += indent + `    throw new Error(\`${displayName}が配列ではありません。\\nレイヤー : ${layerNameEN}\\n関数 : ${functionNameEN}\`);\n`;
         code += indent + `  }\n`;
         code += indent + `}\n`;
-        code += indent + `for( let ${indexName}=0; i<${variableName}.length; i++ ){\n`;
+        code += indent + `for( let ${indexName}=0; ${indexName}<${variableName}.length; ${indexName}++ ){\n`;
         code += varidateVariable(
             layerNameEN,
             functionNameEN,

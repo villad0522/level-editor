@@ -1,9 +1,6 @@
 import fs from "fs";
 import savePath from "./save_path";
-import { buildCode } from "./build_code";
 import { FunctionInfo } from "./function_info";
-
-let pastTime = 0;
 
 export async function saveCode(layerId: string, testCode: string, functionInfos: Array<FunctionInfo>) {
     const testFuncInfo = {
@@ -21,12 +18,4 @@ export async function saveCode(layerId: string, testCode: string, functionInfos:
     //
     const jsonPath = savePath + `${layerId}.json`;
     await fs.promises.writeFile(jsonPath, JSON.stringify(functionInfos));
-    //
-    const nowTime = new Date().getTime();
-    if ((nowTime - pastTime) < 1000 * 60) {
-        return;
-    }
-    pastTime = nowTime;
-    console.log("コードを再生成します。");
-    await buildCode();
 }
