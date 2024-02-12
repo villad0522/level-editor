@@ -232,6 +232,8 @@ function _getText({
         const lastLine = lines[endLineNumber - 1];
         result += "\n" + lastLine.substring(0, endColumn - 1);
         //
+        result = result.replaceAll("$&", "$$$$&");
+        //
         return result;
     }
 }
