@@ -1,1 +1,1 @@
-export default `C:\\Users\\kimura\\Documents\\ui_db\\editor_save_data\\`;
+export default `C:\\Users\\kaito\\Documents\\ui_db\\editor_save_data\\`;

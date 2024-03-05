@@ -7,7 +7,7 @@ let bugNumber = 1;
 
 export async function buildCode() {
     //
-    const outDir = `C:\\Users\\kimura\\Documents\\ui_db\\src\\`;
+    const outDir = `C:\\Users\\kaito\\Documents\\ui_db\\src\\`;
     //
     fs.readdir(outDir, (err, files) => {
         if (err) {
